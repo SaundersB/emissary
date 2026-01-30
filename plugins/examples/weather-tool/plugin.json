@@ -1,0 +1,12 @@
+{
+  "name": "weather-tool",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "tool",
+  "trustLevel": "trusted",
+  "capabilities": ["weather"],
+  "metadata": {
+    "author": "Emissary Team",
+    "description": "Example weather tool plugin"
+  }
+}
