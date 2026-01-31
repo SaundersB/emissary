@@ -22,6 +22,9 @@ import { WorkflowEngineImpl } from './infrastructure/workflows/engine/workflow-e
 import { Agent, Capability } from './domain/entities/agent.js';
 import { Workflow, StepType } from './domain/entities/workflow.js';
 import { AgentId, WorkflowId, StepId, ExecutionId } from './domain/value-objects/index.js';
+import { MemoryManager, InMemoryMemoryStore, FileMemoryStore } from './infrastructure/agents/memory/index.js';
+import * as path from 'path';
+import * as os from 'os';
 
 // Re-export public API
 export * from './domain/index.js';
@@ -45,6 +48,12 @@ export interface EmissaryConfig {
     };
     defaultProvider?: 'anthropic' | 'openai';
   };
+  memory?: {
+    enabled?: boolean;
+    storageDir?: string;
+    consolidationThreshold?: number;
+    pruneInterval?: number;
+  };
   logging?: {
     level?: LogLevel;
   };
@@ -63,6 +72,7 @@ export class Emissary {
   private agentRepository: InMemoryAgentRepository;
   private workflowRepository: InMemoryWorkflowRepository;
   private workflowEngine: WorkflowEngineImpl;
+  private memoryManager?: MemoryManager;
   private executeAgentUseCase: ExecuteAgentUseCaseImpl;
   private loadPluginUseCase: LoadPluginUseCaseImpl;
   private runWorkflowUseCase: RunWorkflowUseCaseImpl;
@@ -125,12 +135,36 @@ export class Emissary {
     this.agentRepository = new InMemoryAgentRepository();
     this.workflowRepository = new InMemoryWorkflowRepository();
 
+    // Initialize memory system if enabled
+    if (config.memory?.enabled !== false) {
+      const storageDir = config.memory?.storageDir ?? path.join(os.homedir(), '.emissary', 'memory');
+
+      const shortTermStore = new InMemoryMemoryStore(this.logger.child('memory-short-term'));
+      const longTermStore = new FileMemoryStore(
+        { storageDir },
+        this.logger.child('memory-long-term')
+      );
+
+      this.memoryManager = new MemoryManager(
+        {
+          shortTermStore,
+          longTermStore,
+          consolidationThreshold: config.memory?.consolidationThreshold,
+          pruneInterval: config.memory?.pruneInterval,
+        },
+        this.logger.child('memory-manager')
+      );
+
+      this.logger.info(`Memory system enabled (storage: ${storageDir})`);
+    }
+
     // Initialize use cases
     this.executeAgentUseCase = new ExecuteAgentUseCaseImpl(
       this.agentRepository,
       this.llmRegistry.getDefault(),
       this.toolRegistry,
-      this.logger.child('execute-agent')
+      this.logger.child('execute-agent'),
+      this.memoryManager
     );
 
     this.loadPluginUseCase = new LoadPluginUseCaseImpl(
@@ -328,6 +362,46 @@ export class Emissary {
   }
 
   /**
+   * Get memory statistics
+   */
+  async getMemoryStats() {
+    if (!this.memoryManager) {
+      throw new Error('Memory system is not enabled');
+    }
+    return await this.memoryManager.getStats();
+  }
+
+  /**
+   * Clear all memories or memories of a specific type
+   */
+  async clearMemory(type?: import('@domain/entities/memory.js').MemoryType) {
+    if (!this.memoryManager) {
+      throw new Error('Memory system is not enabled');
+    }
+    return await this.memoryManager.clear(type);
+  }
+
+  /**
+   * Consolidate memories (move important short-term to long-term)
+   */
+  async consolidateMemory() {
+    if (!this.memoryManager) {
+      throw new Error('Memory system is not enabled');
+    }
+    return await this.memoryManager.consolidate();
+  }
+
+  /**
+   * Prune old or unimportant memories
+   */
+  async pruneMemory(maxAge?: number, minImportance?: import('@domain/entities/memory.js').MemoryImportance) {
+    if (!this.memoryManager) {
+      throw new Error('Memory system is not enabled');
+    }
+    return await this.memoryManager.prune(maxAge, minImportance);
+  }
+
+  /**
    * Get health status
    */
   async healthCheck() {
@@ -341,13 +415,36 @@ export class Emissary {
       }
     }
 
+    // Get memory stats if enabled
+    let memoryStats;
+    if (this.memoryManager) {
+      const stats = await this.memoryManager.getStats();
+      if (stats.isOk()) {
+        memoryStats = stats.unwrap();
+      }
+    }
+
     return {
       healthy: Object.values(providerHealth).every((h) => h),
       providers: providerHealth,
       tools: this.toolRegistry.list().length,
       agents: (await this.agentRepository.findAll()).length,
       workflows: (await this.workflowRepository.findAll()).length,
+      memory: memoryStats,
     };
+  }
+
+  /**
+   * Cleanup resources on shutdown
+   */
+  async cleanup() {
+    this.logger.info('Cleaning up Emissary resources...');
+
+    if (this.memoryManager) {
+      await this.memoryManager.cleanup();
+    }
+
+    this.logger.info('Emissary cleanup complete');
   }
 }
 

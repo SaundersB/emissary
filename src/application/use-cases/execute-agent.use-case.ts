@@ -11,7 +11,9 @@ import {
 import { AgentRepository } from '../ports/output/agent-repository.port.js';
 import { LLMProvider } from '../ports/output/llm-provider.port.js';
 import { ToolRegistry } from '../ports/output/tool.port.js';
+import { MemoryStore } from '../ports/output/memory.port.js';
 import { Task, TaskStatus, Constraints } from '@domain/entities/task.js';
+import { MemoryType, MemoryImportance } from '@domain/entities/memory.js';
 import { TaskId, ExecutionId } from '@domain/value-objects/index.js';
 import { Result, ok, err, JsonValue } from '@shared/types/index.js';
 import { Logger } from '@shared/utils/logger.js';
@@ -25,7 +27,8 @@ export class ExecuteAgentUseCaseImpl implements ExecuteAgentUseCase {
     private readonly agentRepository: AgentRepository,
     private readonly llmProvider: LLMProvider,
     private readonly toolRegistry: ToolRegistry,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly memoryStore?: MemoryStore
   ) {}
 
   async execute(request: ExecuteAgentRequest): Promise<Result<ExecuteAgentResponse, Error>> {
@@ -79,7 +82,7 @@ export class ExecuteAgentUseCaseImpl implements ExecuteAgentUseCase {
 
         try {
           // Build messages for LLM
-          const messages = this.buildMessages(agent, task, iterations);
+          const messages = await this.buildMessages(agent, task, iterations);
 
           // Call LLM
           const response = await this.llmProvider.generateCompletion({
@@ -108,17 +111,36 @@ export class ExecuteAgentUseCaseImpl implements ExecuteAgentUseCase {
               toolCall.arguments as Record<string, JsonValue>
             );
 
+            const observation = toolResult.success
+              ? JSON.stringify(toolResult.output)
+              : `Error: ${toolResult.error}`;
+
             // Record iteration
             iterations.push({
               number: iterationCount,
               thought,
               action: toolCall.name,
               actionInput: toolCall.arguments as Record<string, unknown>,
-              observation: toolResult.success
-                ? JSON.stringify(toolResult.output)
-                : `Error: ${toolResult.error}`,
+              observation,
               timestamp: new Date(),
             });
+
+            // Store in memory if available
+            if (this.memoryStore) {
+              await this.memoryStore.store(
+                MemoryType.Episodic,
+                {
+                  type: 'tool_execution',
+                  tool: toolCall.name,
+                  input: toolCall.arguments,
+                  output: toolResult.output,
+                  success: toolResult.success,
+                  timestamp: new Date().toISOString(),
+                } as JsonValue,
+                toolResult.success ? MemoryImportance.Medium : MemoryImportance.Low,
+                ['tool', toolCall.name, executionId.toString()]
+              );
+            }
 
             // Check if tool execution failed
             if (!toolResult.success) {
@@ -186,7 +208,7 @@ export class ExecuteAgentUseCaseImpl implements ExecuteAgentUseCase {
     }
   }
 
-  private buildMessages(
+  private async buildMessages(
     agent: ReturnType<typeof this.agentRepository.findById> extends Promise<infer T>
       ? NonNullable<T>
       : never,
@@ -217,6 +239,32 @@ Your capabilities: ${agent.getCapabilities().join(', ')}`;
       role: 'user' as const,
       content: task.description,
     });
+
+    // Add relevant memories if available
+    if (this.memoryStore) {
+      const memoryResult = await this.memoryStore.query({
+        type: MemoryType.Episodic,
+        minImportance: MemoryImportance.Medium,
+        limit: 5,
+      });
+
+      if (memoryResult.isOk()) {
+        const memories = memoryResult.unwrap();
+        if (memories.length > 0) {
+          const memoryContext = memories
+            .map((mem) => {
+              const content = mem.content as Record<string, unknown>;
+              return `Past observation: Used ${content.tool} - ${content.success ? 'succeeded' : 'failed'}`;
+            })
+            .join('\n');
+
+          messages.push({
+            role: 'system' as const,
+            content: `Relevant past experience:\n${memoryContext}`,
+          });
+        }
+      }
+    }
 
     // Previous iterations
     for (const iteration of iterations) {

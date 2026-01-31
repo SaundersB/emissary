@@ -6,10 +6,12 @@ A TypeScript-based agentic framework built with clean architecture principles, f
 
 - **Clean Architecture**: Clear separation of concerns with domain-driven design
 - **Hybrid Agents**: Combine AI-powered reasoning with traditional workflow orchestration
+- **Memory System**: Short-term and long-term memory with automatic consolidation
 - **Plugin System**: File-based plugins with three trust levels (trusted, sandboxed, isolated)
 - **Provider-Agnostic**: Support for OpenAI, Anthropic, and local LLM providers
 - **Type-Safe**: Fully typed with TypeScript for reliability and maintainability
 - **Extensible**: Easy to extend with custom agents, tools, workflows, and LLM providers
+- **CLI Interface**: Full command-line interface for agent management and execution
 
 ## Architecture
 
@@ -22,10 +24,50 @@ Emissary follows clean architecture principles with four main layers:
 
 ## Getting Started
 
+### Prerequisites
+
+- Node.js 20.x or later
+- API key from Anthropic or OpenAI
+
 ### Installation
 
 ```bash
+# Clone or navigate to the project
+cd emissary
+
+# Install dependencies
 npm install
+
+# Set your API key
+export ANTHROPIC_API_KEY="your-key-here"
+# or
+export OPENAI_API_KEY="your-key-here"
+```
+
+### Quick Start Options
+
+Choose your preferred interface:
+
+**1. Web UI (Easiest)**
+```bash
+npm run web
+# Open http://localhost:3000
+```
+
+**2. CLI**
+```bash
+npm run cli
+# Interactive CLI interface
+```
+
+**3. Code/Examples**
+```bash
+npm run cli examples/basic-example.ts
+```
+
+**4. Testing**
+```bash
+npm run test:manual
 ```
 
 ### Quick Start
@@ -68,7 +110,47 @@ if (result.isOk()) {
 export ANTHROPIC_API_KEY="your-key-here"
 
 # Run the basic example
-npm run dev examples/basic-example.ts
+npm run cli examples/basic-example.ts
+
+# Run the memory example
+npm run cli examples/memory-example.ts
+
+# Run the workflow example
+npm run cli examples/workflow-example.ts
+```
+
+### Web UI
+
+Launch the web interface for visual agent management:
+
+```bash
+# Set your API key
+export ANTHROPIC_API_KEY="your-key-here"
+
+# Start the web server
+npm run web
+
+# Open http://localhost:3000
+```
+
+Features:
+- 🎨 Modern dark theme UI
+- 🚀 Create and manage agents
+- ⚡ Execute agents with real-time results
+- 📊 Monitor memory statistics
+- 🔧 Browse available tools
+- 🌊 View and run workflows
+
+### Testing
+
+Run comprehensive tests with real LLM integration:
+
+```bash
+# Manual test script (recommended)
+npm run test:manual
+
+# Jest E2E tests
+npm run test:e2e
 ```
 
 ## Core Concepts
@@ -89,6 +171,31 @@ Built-in tools include:
 - **current_time**: Get current date/time
 - **parse_json**: Parse JSON strings
 - **string_manipulation**: String operations
+
+### Memory
+
+Agents can remember past interactions and learn from experience:
+- **Short-Term Memory**: Fast in-memory storage for active sessions
+- **Long-Term Memory**: Persistent file-based storage for important knowledge
+- **Automatic Consolidation**: Important memories promoted to long-term storage
+- **Smart Retrieval**: Relevant past experiences inform current decisions
+
+```typescript
+const emissary = new Emissary({
+  llm: { /* config */ },
+  memory: {
+    enabled: true,
+    consolidationThreshold: 100,
+    pruneInterval: 3600000, // 1 hour
+  }
+});
+
+// Memory is automatically used during agent execution
+// Manually manage memory
+await emissary.getMemoryStats();
+await emissary.consolidateMemory();
+await emissary.pruneMemory();
+```
 
 ### Plugins
 
@@ -216,10 +323,11 @@ const result = await emissary.runWorkflow(workflow.id, { data: 'input' });
 - [x] Basic agent execution with tool use
 - [x] Plugin system foundation
 - [x] Workflow orchestration engine
+- [x] Memory system (short-term and long-term)
+- [x] CLI interface
 - [ ] Sandboxed plugin runtime
-- [ ] Memory persistence
-- [ ] CLI interface
 - [ ] Web UI
+- [ ] Advanced memory features (semantic search, embeddings)
 
 ## Project Status
 

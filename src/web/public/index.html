@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emissary - AI Agent Framework</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+        <h1 class="logo">🚀 Emissary</h1>
+        <p class="tagline">AI-Powered Agent Framework</p>
+      </div>
+      <div class="health-indicator" id="healthIndicator">
+        <span class="status-dot"></span>
+        <span class="status-text">Connecting...</span>
+      </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="agents">Agents</button>
+      <button class="tab" data-tab="workflows">Workflows</button>
+      <button class="tab" data-tab="tools">Tools</button>
+      <button class="tab" data-tab="memory">Memory</button>
+      <button class="tab" data-tab="execute">Execute</button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Agents Tab -->
+      <div class="tab-content active" id="agents-tab">
+        <div class="section-header">
+          <h2>Agents</h2>
+          <button class="btn btn-primary" id="createAgentBtn">Create Agent</button>
+        </div>
+
+        <div id="agentsList" class="cards-grid">
+          <div class="loading">Loading agents...</div>
+        </div>
+
+        <!-- Create Agent Modal -->
+        <div class="modal" id="createAgentModal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3>Create New Agent</h3>
+              <button class="modal-close" onclick="closeModal('createAgentModal')">&times;</button>
+            </div>
+            <form id="createAgentForm">
+              <div class="form-group">
+                <label for="agentName">Name</label>
+                <input type="text" id="agentName" required>
+              </div>
+              <div class="form-group">
+                <label for="agentDescription">Description</label>
+                <textarea id="agentDescription" rows="3" required></textarea>
+              </div>
+              <div class="form-group">
+                <label>Capabilities</label>
+                <div class="checkbox-group">
+                  <label><input type="checkbox" name="capability" value="web-search"> Web Search</label>
+                  <label><input type="checkbox" name="capability" value="file-system"> File System</label>
+                  <label><input type="checkbox" name="capability" value="code-execution"> Code Execution</label>
+                  <label><input type="checkbox" name="capability" value="data-analysis"> Data Analysis</label>
+                </div>
+              </div>
+              <div class="modal-actions">
+                <button type="button" class="btn" onclick="closeModal('createAgentModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Workflows Tab -->
+      <div class="tab-content" id="workflows-tab">
+        <div class="section-header">
+          <h2>Workflows</h2>
+          <button class="btn btn-primary" disabled>Create Workflow</button>
+        </div>
+
+        <div id="workflowsList" class="cards-grid">
+          <div class="loading">Loading workflows...</div>
+        </div>
+      </div>
+
+      <!-- Tools Tab -->
+      <div class="tab-content" id="tools-tab">
+        <div class="section-header">
+          <h2>Available Tools</h2>
+        </div>
+
+        <div id="toolsList" class="cards-grid">
+          <div class="loading">Loading tools...</div>
+        </div>
+      </div>
+
+      <!-- Memory Tab -->
+      <div class="tab-content" id="memory-tab">
+        <div class="section-header">
+          <h2>Memory System</h2>
+          <div class="btn-group">
+            <button class="btn" id="consolidateMemoryBtn">Consolidate</button>
+            <button class="btn btn-danger" id="clearMemoryBtn">Clear All</button>
+          </div>
+        </div>
+
+        <div id="memoryStats" class="stats-grid">
+          <div class="loading">Loading memory stats...</div>
+        </div>
+      </div>
+
+      <!-- Execute Tab -->
+      <div class="tab-content" id="execute-tab">
+        <div class="section-header">
+          <h2>Execute Agent</h2>
+        </div>
+
+        <div class="execute-panel">
+          <form id="executeForm">
+            <div class="form-group">
+              <label for="executeAgent">Select Agent</label>
+              <select id="executeAgent" required>
+                <option value="">-- Select an agent --</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="executeTask">Task Description</label>
+              <textarea id="executeTask" rows="4" required placeholder="Describe what you want the agent to do..."></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="maxIterations">Max Iterations</label>
+                <input type="number" id="maxIterations" value="5" min="1" max="20">
+              </div>
+
+              <div class="form-group">
+                <label for="executeTools">Tools (comma-separated)</label>
+                <input type="text" id="executeTools" placeholder="calculator, current_time">
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg">Execute Agent</button>
+          </form>
+
+          <div id="executeResult" class="result-panel" style="display: none;">
+            <h3>Execution Result</h3>
+            <div id="resultContent"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Emissary v0.1.0 | Clean Architecture | Type-Safe | Extensible</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
